@@ -614,7 +614,43 @@
                 }
 
                 // Parse as item entry
-                const parts = text.split(',').map(p => p.trim());
+                // Handle both comma-separated and space-separated input
+                let parts;
+                if (text.includes(',')) {
+                    // Has commas, use them
+                    parts = text.split(',').map(p => p.trim());
+                } else {
+                    // No commas, split on spaces and intelligently group
+                    // Strategy: Find numbers, assume everything before first number is item name
+                    const words = text.trim().split(/\s+/);
+                    parts = [];
+                    let currentPart = [];
+                    
+                    for (let i = 0; i < words.length; i++) {
+                        const word = words[i];
+                        const cleaned = word.replace(/[$,]/g, '');
+                        const isNumber = !isNaN(parseFloat(cleaned)) && cleaned.length > 0;
+                        
+                        if (isNumber && currentPart.length > 0) {
+                            // Start of a number, save previous part
+                            parts.push(currentPart.join(' '));
+                            currentPart = [word];
+                        } else if (isNumber && i > 0) {
+                            // Consecutive number
+                            parts.push(word);
+                            currentPart = [];
+                        } else {
+                            currentPart.push(word);
+                        }
+                    }
+                    
+                    // Add remaining part
+                    if (currentPart.length > 0) {
+                        parts.push(currentPart.join(' '));
+                    }
+                }
+
+                console.log('Parsed parts:', parts);
 
                 if (parts.length < 2) {
                     vibrate([100, 50, 100]);
@@ -635,16 +671,39 @@
                 item = parts[0];
 
                 // Find price (rightmost number that looks like a price)
+                // Special handling: "28 99" or "28 95" should be $28.99 or $28.95
                 let priceIndex = -1;
-                for (let i = parts.length - 1; i >= 1; i--) {
-                    const cleaned = parts[i].replace(/[$,]/g, '').trim();
-                    const num = parseFloat(cleaned);
+                
+                // Check if last two parts are numbers that could form a price
+                if (parts.length >= 3) {
+                    const lastPart = parts[parts.length - 1];
+                    const secondLastPart = parts[parts.length - 2];
                     
-                    if (!isNaN(num) && num > 0) {
-                        if (cleaned.includes('.') || num > 20 || i === parts.length - 1) {
-                            priceIndex = i;
-                            price = num;
-                            break;
+                    const lastNum = parseFloat(lastPart.replace(/[$,]/g, ''));
+                    const secondLastNum = parseFloat(secondLastPart.replace(/[$,]/g, ''));
+                    
+                    // If both are numbers and last is 0-99, combine as decimal price
+                    if (!isNaN(lastNum) && !isNaN(secondLastNum) && 
+                        lastNum >= 0 && lastNum < 100 && 
+                        secondLastNum > 0 && secondLastNum < 10000) {
+                        price = parseFloat(`${secondLastNum}.${lastNum.toString().padStart(2, '0')}`);
+                        priceIndex = parts.length - 2;
+                    }
+                }
+                
+                // If we didn't find a two-part price, look for single number price
+                if (priceIndex === -1) {
+                    for (let i = parts.length - 1; i >= 1; i--) {
+                        const cleaned = parts[i].replace(/[$,]/g, '').trim();
+                        const num = parseFloat(cleaned);
+                        
+                        if (!isNaN(num) && num > 0) {
+                            // Price indicators: has decimal OR is reasonably large OR is last numeric
+                            if (cleaned.includes('.') || num > 5 || i === parts.length - 1) {
+                                priceIndex = i;
+                                price = num;
+                                break;
+                            }
                         }
                     }
                 }
