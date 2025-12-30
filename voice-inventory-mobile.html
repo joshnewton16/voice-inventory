@@ -698,10 +698,18 @@
                         const num = parseFloat(cleaned);
                         
                         if (!isNaN(num) && num > 0) {
-                            // Price indicators: has decimal OR is reasonably large OR is last numeric
-                            if (cleaned.includes('.') || num > 5 || i === parts.length - 1) {
+                            // Price indicators: has decimal OR is last numeric value
+                            if (cleaned.includes('.') || i === parts.length - 1) {
+                                // Special handling for 3-4 digit numbers without decimals
+                                // Assume last 2 digits are cents (e.g., 2899 → $28.99, 1250 → $12.50)
+                                if (!cleaned.includes('.') && num >= 100 && num < 10000) {
+                                    const dollars = Math.floor(num / 100);
+                                    const cents = num % 100;
+                                    price = parseFloat(`${dollars}.${cents.toString().padStart(2, '0')}`);
+                                } else {
+                                    price = num;
+                                }
                                 priceIndex = i;
-                                price = num;
                                 break;
                             }
                         }
