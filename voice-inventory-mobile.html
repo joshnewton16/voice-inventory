@@ -532,6 +532,12 @@
             const [browserSupported, setBrowserSupported] = useState(true);
             const recognitionRef = useRef(null);
             const successTimeoutRef = useRef(null);
+            const currentAreaRef = useRef(currentArea); // Add ref to track current area
+
+            // Keep ref in sync with state
+            useEffect(() => {
+                currentAreaRef.current = currentArea;
+            }, [currentArea]);
 
             useEffect(() => {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -768,7 +774,7 @@
 
                 const newItem = {
                     id: Date.now(),
-                    area: currentArea,
+                    area: currentAreaRef.current, // Use ref to get current value
                     item,
                     variant: variant || null,
                     quantity: quantity || 1,
