@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#00ff94">
+    <title>Voice Inventory</title>
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlZvaWNlIEludmVudG9yeSIsCiAgInNob3J0X25hbWUiOiAiSW52ZW50b3J5IiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYTBlMTQiLAogICJ0aGVtZV9jb2xvciI6ICIjMDBmZjk0IiwKICAiaWNvbnMiOiBbXQp9">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e14;
+            --surface: #1a1f28;
+            --surface-light: #252b38;
+            --accent: #00ff94;
+            --accent-glow: rgba(0, 255, 148, 0.2);
+            --text: #ffffff;
+            --text-dim: #8b949e;
+            --warning: #ff6b6b;
+            --success: #00ff94;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overscroll-behavior: none;
+            touch-action: pan-y;
+        }
+
+        .mobile-app {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        /* Sticky Header with Current Area */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
+            border-bottom: 3px solid var(--accent);
+            padding: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+        }
+
+        .item-count-badge {
+            background: var(--surface-light);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            border: 2px solid var(--accent);
+        }
+
+        .current-area-display {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .area-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .area-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        /* Main Content Area */
+        .content {
+            flex: 1;
+            padding: 1rem;
+            padding-bottom: 180px; /* Space for fixed controls */
+        }
+
+        /* Fixed Bottom Controls */
+        .fixed-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg);
+            border-top: 2px solid var(--accent);
+            padding: 1rem;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .quick-mode-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--surface);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .toggle-switch {
+            width: 48px;
+            height: 28px;
+            background: var(--surface-light);
+            border-radius: 14px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: 2px solid var(--text-dim);
+        }
+
+        .toggle-switch.active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .voice-button {
+            width: 100%;
+            height: 80px;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .voice-button.idle {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        .voice-button.listening {
+            background: var(--warning);
+            color: white;
+            animation: listening-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes listening-pulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 4px 20px rgba(255, 107, 107, 0.4);
+            }
+            50% { 
+                transform: scale(1.02);
+                box-shadow: 0 8px 40px rgba(255, 107, 107, 0.6);
+            }
+        }
+
+        .voice-button.success {
+            background: var(--success);
+            color: var(--bg);
+            animation: success-flash 0.5s ease-out;
+        }
+
+        @keyframes success-flash {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .mic-icon {
+            font-size: 2.5rem;
+        }
+
+        /* Transcript Display */
+        .transcript-box {
+            background: var(--surface);
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
+        .transcript-box.active {
+            color: var(--text);
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+        }
+
+        .transcript-box.error {
+            color: var(--warning);
+            border-color: var(--warning);
+            background: var(--surface);
+        }
+
+        .transcript-box.success {
+            color: var(--success);
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--surface) 0%, var(--surface-light) 100%);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .action-btn {
+            padding: 1rem;
+            border: 2px solid var(--accent);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 0.875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+            background: var(--surface-light);
+        }
+
+        /* Inventory Items */
+        .inventory-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .inventory-item {
+            background: var(--surface);
+            border: 2px solid var(--surface-light);
+            border-radius: 12px;
+            padding: 1.25rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+            gap: 1rem;
+        }
+
+        .item-name-group {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            word-break: break-word;
+        }
+
+        .item-variant {
+            font-size: 1rem;
+            color: var(--text-dim);
+            background: var(--surface-light);
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .delete-btn {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
+            border: 2px solid var(--warning);
+            background: var(--surface-light);
+            color: var(--warning);
+            border-radius: 8px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-btn:active {
+            background: var(--warning);
+            color: white;
+            transform: scale(0.9);
+        }
+
+        .item-details {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--surface-light);
+        }
+
+        .item-detail {
+            text-align: center;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            font-size: 1.25rem;
+            font-weight: 900;
+            color: var(--text);
+        }
+
+        .detail-value.price {
+            color: var(--accent);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-dim);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .empty-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.125rem;
+            background: var(--bg);
+            border: 2px solid var(--accent);
+            color: var(--text);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .modal-btn {
+            padding: 1rem;
+            border: 2px solid var(--accent);
+            background: var(--surface-light);
+            color: var(--text);
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* Success Toast */
+        .toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--success);
+            color: var(--bg);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 1rem;
+            z-index: 1001;
+            animation: toastSlide 0.3s ease-out;
+            box-shadow: 0 4px 20px rgba(0, 255, 148, 0.4);
+        }
+
+        @keyframes toastSlide {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function MobileVoiceInventory() {
+            const [items, setItems] = useState([]);
+            const [currentArea, setCurrentArea] = useState('Unassigned');
+            const [isListening, setIsListening] = useState(false);
+            const [buttonState, setButtonState] = useState('idle'); // idle, listening, success
+            const [transcript, setTranscript] = useState('');
+            const [quickMode, setQuickMode] = useState(false);
+            const [showAreaModal, setShowAreaModal] = useState(false);
+            const [tempArea, setTempArea] = useState('');
+            const [showToast, setShowToast] = useState(false);
+            const [toastMessage, setToastMessage] = useState('');
+            const [browserSupported, setBrowserSupported] = useState(true);
+            const recognitionRef = useRef(null);
+            const successTimeoutRef = useRef(null);
+
+            useEffect(() => {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    setBrowserSupported(false);
+                    return;
+                }
+
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onresult = (event) => {
+                    const text = event.results[0][0].transcript;
+                    console.log('Heard:', text);
+                    setTranscript(`Heard: ${text}`);
+                    
+                    // Give user time to see what was heard before processing
+                    setTimeout(() => {
+                        processVoiceInput(text);
+                    }, 500);
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    setTranscript(`Error: ${event.error}`);
+                    setIsListening(false);
+                    setButtonState('idle');
+                    vibrate([100, 50, 100, 50, 100]);
+                };
+
+                recognition.onend = () => {
+                    console.log('Recognition ended');
+                    setIsListening(false);
+                    if (!quickMode && buttonState !== 'success') {
+                        setButtonState('idle');
+                    }
+                };
+
+                recognitionRef.current = recognition;
+            }, [quickMode]);
+
+            const vibrate = (pattern) => {
+                if (navigator.vibrate) {
+                    navigator.vibrate(pattern);
+                }
+            };
+
+            const showSuccessToast = (message) => {
+                setToastMessage(message);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 2000);
+            };
+
+            const processVoiceInput = (text) => {
+                const lower = text.toLowerCase().trim();
+
+                // Check if it's an area change command
+                if (lower.startsWith('set area to ') || lower.startsWith('area ')) {
+                    const areaMatch = lower.match(/(?:set area to |area )(.+)/);
+                    if (areaMatch) {
+                        const newArea = areaMatch[1].trim();
+                        const formattedArea = newArea.charAt(0).toUpperCase() + newArea.slice(1);
+                        setCurrentArea(formattedArea);
+                        vibrate([50, 50, 50]);
+                        showSuccessToast(`Area set to ${formattedArea}`);
+                        
+                        setButtonState('success');
+                        clearTimeout(successTimeoutRef.current);
+                        successTimeoutRef.current = setTimeout(() => {
+                            setTranscript('');
+                            setButtonState('idle');
+                            if (quickMode) {
+                                startListening();
+                            }
+                        }, 1500);
+                        return;
+                    }
+                }
+
+                // Parse as item entry
+                const parts = text.split(',').map(p => p.trim());
+
+                if (parts.length < 2) {
+                    vibrate([100, 50, 100]);
+                    setTranscript(`❌ Need at least item name and price. You said: "${text}"`);
+                    setButtonState('idle');
+                    setTimeout(() => {
+                        if (quickMode) {
+                            startListening();
+                        } else {
+                            setTranscript('');
+                        }
+                    }, 3000);
+                    return;
+                }
+
+                let item, variant, quantity, price, type;
+
+                item = parts[0];
+
+                // Find price (rightmost number that looks like a price)
+                let priceIndex = -1;
+                for (let i = parts.length - 1; i >= 1; i--) {
+                    const cleaned = parts[i].replace(/[$,]/g, '').trim();
+                    const num = parseFloat(cleaned);
+                    
+                    if (!isNaN(num) && num > 0) {
+                        if (cleaned.includes('.') || num > 20 || i === parts.length - 1) {
+                            priceIndex = i;
+                            price = num;
+                            break;
+                        }
+                    }
+                }
+
+                if (priceIndex === -1) {
+                    vibrate([100, 50, 100]);
+                    setTranscript(`❌ Could not find price. You said: "${text}"`);
+                    setButtonState('idle');
+                    setTimeout(() => {
+                        if (quickMode) {
+                            startListening();
+                        } else {
+                            setTranscript('');
+                        }
+                    }, 3000);
+                    return;
+                }
+
+                // Process middle parts
+                const middleParts = parts.slice(1, priceIndex);
+                
+                if (middleParts.length === 0) {
+                    quantity = 1;
+                } else {
+                    const variantParts = [];
+                    let quantityFound = false;
+                    
+                    for (const part of middleParts) {
+                        const cleaned = part.replace(/[$,]/g, '').trim();
+                        const num = parseFloat(cleaned);
+                        const isStandaloneInteger = cleaned === num.toString() && Number.isInteger(num);
+                        
+                        if (!quantityFound && isStandaloneInteger && num >= 1 && num <= 999) {
+                            quantity = num;
+                            quantityFound = true;
+                        } else {
+                            variantParts.push(part);
+                        }
+                    }
+                    
+                    if (!quantityFound) {
+                        quantity = 1;
+                    }
+                    
+                    if (variantParts.length > 0) {
+                        variant = variantParts.join(', ');
+                    }
+                }
+
+                // Type is anything after price
+                if (priceIndex < parts.length - 1) {
+                    type = parts.slice(priceIndex + 1).join(', ');
+                }
+
+                const newItem = {
+                    id: Date.now(),
+                    area: currentArea,
+                    item,
+                    variant: variant || null,
+                    quantity: quantity || 1,
+                    price,
+                    type: type || null,
+                    timestamp: new Date().toISOString()
+                };
+
+                setItems(prev => [newItem, ...prev]);
+                
+                // Success feedback
+                vibrate([50, 30, 50]);
+                setButtonState('success');
+                setTranscript(`✓ Added: ${item} - $${price.toFixed(2)}`);
+                showSuccessToast('Item added!');
+                
+                // Reset and continue in quick mode
+                clearTimeout(successTimeoutRef.current);
+                successTimeoutRef.current = setTimeout(() => {
+                    setTranscript('');
+                    setButtonState('idle');
+                    if (quickMode) {
+                        startListening();
+                    }
+                }, 1500);
+            };
+
+            const startListening = () => {
+                if (!browserSupported) {
+                    alert('Speech recognition not supported in your browser');
+                    return;
+                }
+
+                setTranscript('');
+                setButtonState('listening');
+                setIsListening(true);
+                recognitionRef.current?.start();
+                vibrate(50);
+            };
+
+            const stopListening = () => {
+                recognitionRef.current?.stop();
+                setIsListening(false);
+                setButtonState('idle');
+            };
+
+            const toggleVoice = () => {
+                if (isListening) {
+                    stopListening();
+                } else {
+                    startListening();
+                }
+            };
+
+            const openAreaModal = () => {
+                setTempArea(currentArea);
+                setShowAreaModal(true);
+            };
+
+            const saveArea = () => {
+                if (tempArea.trim()) {
+                    setCurrentArea(tempArea.trim());
+                    vibrate([50, 50]);
+                }
+                setShowAreaModal(false);
+            };
+
+            const deleteItem = (id) => {
+                if (confirm('Delete this item?')) {
+                    setItems(prev => prev.filter(item => item.id !== id));
+                    vibrate(100);
+                }
+            };
+
+            const clearAll = () => {
+                if (items.length > 0 && confirm('Clear all inventory items?')) {
+                    setItems([]);
+                    vibrate([100, 50, 100]);
+                }
+            };
+
+            const exportToCSV = () => {
+                if (items.length === 0) {
+                    alert('No items to export!');
+                    return;
+                }
+
+                const headers = ['Area of Store', 'Item', 'Item Variant', 'Quantity', 'Retail Price', 'Item Type'];
+                const rows = items.map(item => [
+                    item.area,
+                    item.item,
+                    item.variant || '',
+                    item.quantity,
+                    item.price,
+                    item.type || ''
+                ]);
+
+                const csv = [
+                    headers.join(','),
+                    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+                ].join('\n');
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventory-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                vibrate([50, 50]);
+            };
+
+            const exportToJSON = () => {
+                if (items.length === 0) {
+                    alert('No items to export!');
+                    return;
+                }
+
+                const json = JSON.stringify(items, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `inventory-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                vibrate([50, 50]);
+            };
+
+            return (
+                <div className="mobile-app">
+                    {/* Sticky Header */}
+                    <div className="sticky-header">
+                        <div className="header-top">
+                            <div className="app-title">📦 Inventory</div>
+                            <div className="item-count-badge">{items.length} items</div>
+                        </div>
+                        <div className="current-area-display" onClick={openAreaModal}>
+                            <div className="area-label">Current Area</div>
+                            <div className="area-value">{currentArea}</div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="content">
+                        {/* Transcript */}
+                        <div className={`transcript-box ${
+                            transcript.startsWith('❌') ? 'error' : 
+                            transcript.startsWith('✓') ? 'success' : 
+                            transcript ? 'active' : ''
+                        }`}>
+                            {transcript || 'Tap button to start recording'}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="action-buttons">
+                            <button className="action-btn" onClick={openAreaModal}>
+                                📍 Set Area
+                            </button>
+                            <button className="action-btn" onClick={exportToCSV} disabled={items.length === 0}>
+                                📊 Export CSV
+                            </button>
+                            <button className="action-btn" onClick={exportToJSON} disabled={items.length === 0}>
+                                💾 Export JSON
+                            </button>
+                            <button className="action-btn" onClick={clearAll} disabled={items.length === 0}>
+                                🗑️ Clear All
+                            </button>
+                        </div>
+
+                        {/* Inventory List */}
+                        {items.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-icon">📦</div>
+                                <div className="empty-text">No items yet</div>
+                                <div style={{marginTop: '2rem', fontSize: '0.875rem', color: 'var(--text-dim)', lineHeight: '1.6'}}>
+                                    <strong>Tips:</strong><br/>
+                                    • Speak clearly after tapping Record<br/>
+                                    • Watch the transcript box to see what was heard<br/>
+                                    • Try: "Red widget, 29.99"<br/>
+                                    • Enable microphone permissions if prompted<br/>
+                                    • Works best in Chrome or Safari
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="inventory-list">
+                                {items.map(item => (
+                                    <div key={item.id} className="inventory-item">
+                                        <div className="item-header">
+                                            <div className="item-name-group">
+                                                <div className="item-name">{item.item}</div>
+                                                {item.variant && (
+                                                    <span className="item-variant">{item.variant}</span>
+                                                )}
+                                            </div>
+                                            <button className="delete-btn" onClick={() => deleteItem(item.id)}>
+                                                ✕
+                                            </button>
+                                        </div>
+                                        <div className="item-details">
+                                            <div className="item-detail">
+                                                <div className="detail-label">QTY</div>
+                                                <div className="detail-value">{item.quantity}</div>
+                                            </div>
+                                            <div className="item-detail">
+                                                <div className="detail-label">Price</div>
+                                                <div className="detail-value price">${item.price.toFixed(2)}</div>
+                                            </div>
+                                            <div className="item-detail">
+                                                <div className="detail-label">Area</div>
+                                                <div className="detail-value">{item.area}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Fixed Bottom Controls */}
+                    <div className="fixed-controls">
+                        <div className="quick-mode-toggle">
+                            <span>Quick Mode</span>
+                            <div 
+                                className={`toggle-switch ${quickMode ? 'active' : ''}`}
+                                onClick={() => setQuickMode(!quickMode)}
+                            />
+                        </div>
+                        <button 
+                            className={`voice-button ${buttonState}`}
+                            onClick={toggleVoice}
+                        >
+                            <span className="mic-icon">
+                                {buttonState === 'listening' ? '🎤' : buttonState === 'success' ? '✓' : '🎤'}
+                            </span>
+                            <span>
+                                {buttonState === 'listening' ? 'Listening...' : buttonState === 'success' ? 'Added!' : 'Record'}
+                            </span>
+                        </button>
+                    </div>
+
+                    {/* Area Modal */}
+                    {showAreaModal && (
+                        <div className="modal-overlay" onClick={() => setShowAreaModal(false)}>
+                            <div className="modal" onClick={(e) => e.stopPropagation()}>
+                                <div className="modal-title">Set Area</div>
+                                <input 
+                                    type="text"
+                                    className="modal-input"
+                                    value={tempArea}
+                                    onChange={(e) => setTempArea(e.target.value)}
+                                    placeholder="Enter area name"
+                                    autoFocus
+                                />
+                                <div className="modal-buttons">
+                                    <button className="modal-btn" onClick={() => setShowAreaModal(false)}>
+                                        Cancel
+                                    </button>
+                                    <button className="modal-btn primary" onClick={saveArea}>
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Success Toast */}
+                    {showToast && (
+                        <div className="toast">
+                            {toastMessage}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<MobileVoiceInventory />, document.getElementById('root'));
+    </script>
+</body>
+</html>
